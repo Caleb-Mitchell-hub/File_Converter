@@ -1,0 +1,30 @@
+# ==========================================
+# doc_converter 依赖清单
+# ==========================================
+# 安装：pip install -r requirements.txt
+# 可选分组：pip install -r requirements.txt [ocr] [win32] [all]
+# ==========================================
+
+# 基础
+PyMuPDF>=1.23.0        # PDF 解析与渲染（fitz）
+pdfplumber>=0.10.0     # PDF 表格抽取
+Pillow>=10.0.0         # 图片处理
+openpyxl>=3.1.0        # Excel 读写
+python-docx>=1.0.0     # Word 读写
+docx2pdf>=0.1.8        # Word -> PDF（依赖本地 Office/LibreOffice）
+
+# OCR（可选）
+# pip install pytesseract
+# 还需要系统安装 tesseract 二进制：
+#   Windows:   https://github.com/UB-Mannheim/tesseract/wiki
+#   macOS:     brew install tesseract tesseract-lang
+#   Linux:     sudo apt install tesseract-ocr tesseract-ocr-chi-sim
+pytesseract>=0.3.10    # 可选：OCR 引擎
+
+# Windows 专用（可选，提升 Excel/Word 转换保真度）
+# 仅 Windows + 安装了 MS Office 时才需要
+# pywin32>=306         # pip install pywin32
+
+# 测试
+pytest>=7.4.0
+pytest-cov>=4.1.0
