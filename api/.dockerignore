@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志和临时
+*.log
+logs/*.log
+uploads/*
+outputs/*
+
+# 环境
+.env
+
+# 测试和示例
+examples/
+
+# 文档
+*.md
+!README.md
+LICENSE

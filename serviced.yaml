@@ -1,0 +1,43 @@
+# 服务注册元数据（Serviced-MP 管理平台读取）
+# 规范：E:\WorkSpace\Project\Serviced_MP\API文档-服务注册规范.md
+
+name: "File_HZ 文档转换服务"
+type: exe
+
+description: |
+  企业级文档转换平台。
+  支持 Excel / Word / PDF / 图片 互转、OCR 识别。
+  后端: FastAPI + uvicorn (port 8000)
+  前端: Vue 3 + Vite (port 5213)
+
+# 启动入口：项目内未找到 api/scripts/run_dev.bat，因此省略 entry 字段
+workdir: .
+
+# 不需要：args、env（启动脚本里已含）
+
+ports:
+  - number: 8000
+    protocol: tcp
+    listen_addr: 0.0.0.0
+    note: "FastAPI 后端 (uvicorn)"
+  - number: 5213
+    protocol: tcp
+    listen_addr: 0.0.0.0
+    note: "Vite 前端开发服务器"
+
+# 供运维人员直接打开
+urls:
+  - name: "前端 Web 界面"
+    url: "http://localhost:5213"
+  - name: "后端根地址"
+    url: "http://localhost:8000"
+  - name: "Swagger 文档"
+    url: "http://localhost:8000/docs"
+
+# 供程序调用的 API 入口
+api_urls:
+  - name: "REST API v1"
+    url: "http://localhost:8000/api/v1"
+
+# 健康检查端点：管理平台周期性 GET 此地址
+health_url: "http://localhost:8000/info"
