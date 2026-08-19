@@ -1,393 +1,264 @@
-# doc_converter
+<p align="center">
+  <h1 align="center">File Converter · 文件转换平台</h1>
+  <p align="center">
+    企业级文档转换工具 · Excel / Word / PDF / 图片 / OCR 多向互转
+  </p>
+  <p align="center">
+    <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+    <img src="https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+    <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white" alt="Vue 3">
+    <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License">
+  </p>
+</p>
 
-> 企业级文档转换工具 (Enterprise-grade document converter for Python)
->
-> Excel / Word / PDF / 图片 / OCR 之间的多向转换，提供统一入口与可扩展插件架构。
-
----
-
-## 项目介绍
-
-`doc_converter` 是一个**纯 Python** 实现的统一文档转换工具，针对企业内部"格式分散、转换保真、批处理可控"的常见痛点：
-
-- **统一入口**：`Converter.convert(src, dst)` 一行代码搞定；无需关心底层引擎。
-- **可扩展**：基于 `Registry` + `BaseConverter` 抽象，新增一种转换只需写一个类并 `register`。
-- **高保真**：Excel/Word → PDF 在 Windows 上优先使用本地 Office COM 接口（字体/颜色/图表/合并单元格全部保留）。
-- **健壮**：单文件失败不影响批量任务；目标目录自动创建；同名文件不会覆盖原始。
-- **可观测**：内置 logging，按 `[时间] [级别] [模块]` 输出到 stderr。
-
-典型场景：
-
-- 财务报表批量导出 PDF 用于归档；
-- 扫描件（图片）OCR 识别后转 Excel；
-- 把 PDF/Word 手册拆成高清 PNG 用于内嵌 PPT；
-- 第三方数据交付前批量格式归一。
+> 一个开箱即用的文档格式转换平台：核心转换库（纯 Python）、REST API（FastAPI）、Web 界面（Vue 3）三合一。
+> 支持 Excel / Word / PDF / 图片之间的多向转换，以及基于本地 Tesseract 或云端 Qwen-VL 大模型的图片 OCR → Excel 表格识别。
 
 ---
 
-## 功能清单
+## ✨ 功能特性
 
-| 编号 | 功能 | 方向 | 默认引擎 |
-|------|------|------|----------|
-| 1 | Excel → PDF | `.xlsx`/`.xls` → `.pdf` | Windows: `pywin32`；其它: `LibreOffice` |
-| 2 | PDF → Excel | `.pdf` → `.xlsx` | `pdfplumber` + `openpyxl` |
-| 3 | Excel → 图片 | `.xlsx`/`.xls` → `.png`/`.jpg` | `LibreOffice` + `PyMuPDF` (300 DPI) |
-| 4 | PDF → 图片 | `.pdf` → `.png`/`.jpg` | `PyMuPDF` (300 DPI) |
-| 5 | 图片 → PDF | `.png`/`.jpg`/`.jpeg`/`.bmp`/`.tiff`/`.webp` → `.pdf` | `Pillow` |
-| 6 | Word → PDF | `.docx`/`.doc` → `.pdf` | Windows: `docx2pdf`/`pywin32`；其它: `LibreOffice` |
-| 7 | PDF → Word | `.pdf` → `.docx` | `pdfplumber` + `python-docx`（仅文本） |
-| 8 | 图片 OCR → Excel | `.png`/`.jpg`/... → `.xlsx` | `pytesseract` (Tesseract) |
-
-合计 18+ 个支持组合，覆盖企业 90% 的"格式互换"诉求。
+- 🔄 **多格式互转** — 覆盖 Excel、Word、PDF、图片 4 大类，13 种转换方向
+- 🤖 **三引擎 OCR** — 支持 Tesseract（本地）、Qwen-VL（云端大模型）、OpenCV 混合（几何检测 + 大模型）三种表格识别引擎，可在线切换
+- 🖥️ **Web 界面** — Vue 3 + Element Plus 构建的现代化前端，支持拖拽上传、批量转换、任务进度追踪
+- ⚡ **异步处理** — 批量转换走后台任务队列，`task_id` 轮询进度，不阻塞请求
+- 🔌 **可扩展架构** — `Registry` + `BaseConverter` 插件式设计，新增转换类型只需写一个类
+- 🎯 **高保真** — Windows 下优先调用本地 Office COM 接口，字体/颜色/图表/合并单元格完整保留
+- 🌐 **跨平台** — Windows / macOS / Linux，无 Office 时自动回退 LibreOffice
+- 🔒 **健壮容错** — 单文件失败不影响批量任务，同名文件自动追加后缀，不覆盖原始文件
 
 ---
 
-## 支持矩阵
+## 📋 支持矩阵
 
-| 输入 → 输出 | xlsx | xls | docx | doc | pdf | png | jpg | bmp/tiff/webp |
-|-------------|:----:|:---:|:----:|:---:|:---:|:---:|:---:|:-------------:|
-| **xlsx**    |  -   |  -  |  -   |  -  | ✅  | ✅  | ✅  |       -       |
-| **xls**     |  -   |  -  |  -   |  -  | ✅  | ✅  | ✅  |       -       |
-| **docx**    |  -   |  -  |  -   |  -  | ✅  |  -  |  -  |       -       |
-| **doc**     |  -   |  -  |  -   |  -  | ✅  |  -  |  -  |       -       |
-| **pdf**     |  ✅  |  -  |  ✅   |  -  |  -  | ✅  | ✅  |       -       |
-| **png**     |  ✅  |  -  |  -   |  -  | ✅  |  -  |  -  |       -       |
-| **jpg/jpeg**|  ✅  |  -  |  -   |  -  | ✅  |  -  |  -  |       -       |
-| **bmp/tiff/webp** | ✅ | - | - | - | ✅ | - | - | - |
+| 输入 ↓ / 输出 → | PDF | XLSX | PNG | JPG | DOCX |
+|:----------------|:---:|:----:|:---:|:---:|:----:|
+| **Excel (.xlsx/.xls)** | ✅ |  —  | ✅ | ✅ |  —  |
+| **PDF**          |  —  |  ✅  | ✅ | ✅ |  ✅  |
+| **Word (.docx/.doc)** | ✅ |  —  |  —  |  —  |  —  |
+| **图片 (.png/.jpg/.bmp/.tiff/.webp)** | ✅ | ✅* |  —  |  —  |  —  |
 
-> 单元格为空表示暂不支持（可作为后续扩展方向，例如 Markdown → PDF、Word → 图片 等）。
+> `✅*` 表示图片 → Excel 走 OCR 识别，支持三种引擎（见下文 [OCR 引擎](#-ocr-引擎配置)）。
+
+**13 种转换方向：**
+
+| # | 转换 | 默认引擎 |
+|:-:|------|----------|
+| 1 | Excel → PDF | Windows: `pywin32` · 其它: `LibreOffice` |
+| 2 | Excel → 图片 | `LibreOffice` + `PyMuPDF` |
+| 3 | PDF → Excel | `pdfplumber` + `openpyxl` |
+| 4 | PDF → 图片 | `PyMuPDF` |
+| 5 | 图片 → PDF | `Pillow` |
+| 6 | Word → PDF | Windows: `docx2pdf`/`pywin32` · 其它: `LibreOffice` |
+| 7 | PDF → Word | `pdfplumber` + `python-docx` |
+| 8 | 图片 → Excel (OCR) | `Tesseract` / `Qwen-VL` / `OpenCV Hybrid` |
 
 ---
 
-## 安装指南
+## 🧰 技术栈
 
-### 1) 基础 Python 依赖
+| 层 | 技术 |
+|----|------|
+| 核心库 | Python 3.10+ · PyMuPDF · pdfplumber · Pillow · openpyxl · python-docx |
+| 后端 API | FastAPI · Pydantic Settings · Uvicorn |
+| 前端 | Vue 3 · TypeScript · Vite · Element Plus · Pinia · Vue Router · Axios |
+| OCR | pytesseract · Qwen-VL（DashScope 兼容接口）· OpenCV |
+
+---
+
+## 📁 项目结构
+
+```
+File_HZ/
+├── doc_converter/              # 核心转换库（纯 Python，可独立使用）
+│   ├── core/                   # BaseConverter / Registry / Converter / BatchProcessor
+│   ├── converters/             # excel / pdf / word / image / ocr / opencv_ocr / qwen_ocr
+│   └── utils/                  # 路径 / 平台检测
+├── api/                        # FastAPI 后端服务
+│   ├── app/
+│   │   ├── api/routes/         # convert / tasks / settings / health / info
+│   │   ├── models/             # 枚举 / Pydantic schema
+│   │   ├── service/            # ConversionService / TaskManager
+│   │   └── config.py           # 全局配置（.env 加载）
+│   ├── .env.example            # 环境变量模板
+│   └── requirements.txt
+├── frontend/                   # Vue 3 前端
+│   └── src/
+│       ├── views/              # convert / tasks / settings / login
+│       ├── api/                # 后端接口封装
+│       ├── stores/             # Pinia 状态管理
+│       └── types/              # TypeScript 类型
+└── examples/                   # 核心库调用示例
+```
+
+---
+
+## 🚀 快速开始
+
+### 前置依赖
+
+- **Python 3.10+**
+- **Node.js 18+**（前端）
+- 可选：Tesseract（本地 OCR）、LibreOffice / Microsoft Office（Excel/Word → PDF）
+
+### 1. 启动后端
 
 ```bash
-# 1. 克隆 / 拷贝项目到本地
-cd doc_converter
-
-# 2. 推荐使用虚拟环境
+cd api
 python -m venv .venv
-source .venv/bin/activate          # Linux / macOS
-.venv\Scripts\activate             # Windows
 
-# 3. 安装基础依赖
+# Windows
+.venv\Scripts\activate
+# Linux / macOS
+source .venv/bin/activate
+
 pip install -r requirements.txt
+
+# 复制环境变量模板并填写
+cp .env.example .env
+
+# 启动（默认端口 8000）
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 2) 可选：OCR（图片 → Excel）
+启动后可访问：
+- Swagger 文档：<http://localhost:8000/docs>
+- 健康检查：<http://localhost:8000/api/v1/health>
+
+### 2. 启动前端
 
 ```bash
-pip install pytesseract
+cd frontend
+npm install
+
+# 开发模式（默认端口 5173）
+npm run dev
 ```
 
-还需要系统层安装 Tesseract 二进制：
+> 前端通过 Vite 代理访问后端，可在 `frontend/.env.development` 中配置 `VITE_API_BASE` 指向后端地址。
 
-| 平台 | 命令 |
-|------|------|
-| **Windows** | 前往 [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) 下载安装包，安装时勾选 `Chinese (Simplified)` 语言包。 |
-| **macOS** | `brew install tesseract tesseract-lang` |
-| **Linux (Debian/Ubuntu)** | `sudo apt install tesseract-ocr tesseract-ocr-chi-sim tesseract-ocr-eng` |
-
-### 3) 可选：Windows + Microsoft Office（提升保真度）
+### 3. Docker 部署（可选）
 
 ```bash
-pip install pywin32 docx2pdf
+cd api
+docker compose up -d
 ```
-
-仅当本机已安装 Microsoft Office（Excel/Word）时有效。它能调用本机 Office 的 `ExportAsFixedFormat`，完整保留格式。
-
-### 4) 可选：LibreOffice（跨平台降级方案）
-
-| 平台 | 命令 |
-|------|------|
-| **Windows** | 前往 [libreoffice.org](https://www.libreoffice.org/download/download/) 下载安装。 |
-| **macOS** | `brew install --cask libreoffice` |
-| **Linux (Debian/Ubuntu)** | `sudo apt install libreoffice` |
-
-> 在没有 MS Office 的 Linux/macOS/无 GUI 服务器上，**LibreOffice 是必装的**，否则 `.xlsx` → `.pdf`、`.docx` → `.pdf` 都会失败。
 
 ---
 
-## 快速开始
+## 🤖 OCR 引擎配置
+
+图片 → Excel（OCR）支持三种引擎，可在 **前端「系统设置」页** 或通过 **REST API** 在线切换，无需重启服务：
+
+| 引擎 | 值 | 说明 | 适用场景 |
+|------|-----|------|----------|
+| OpenCV 混合 | `opencv_hybrid` | OpenCV 几何检测 + Qwen-VL 云端 OCR（默认） | 带边框的规整表格 |
+| Qwen-VL | `qwen_vl` | 纯 Qwen-VL 大模型云端识别 | 无边框表格，需配置 API Key |
+| Tesseract | `tesseract` | 纯本地 Tesseract，无需网络 | 简单文字识别，离线可用 |
+
+**配置 Qwen-VL 大模型**（在 `.env` 或前端设置页）：
+
+```bash
+OCR_ENGINE=qwen_vl
+QWEN_API_KEY=sk-xxxxxx
+QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=qwen-vl-plus
+QWEN_TIMEOUT=60
+```
+
+**安装本地 Tesseract**（使用 `tesseract` 引擎时）：
+
+| 平台 | 命令 |
+|------|------|
+| Windows | 前往 [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki) 下载安装，勾选中文语言包 |
+| macOS | `brew install tesseract tesseract-lang` |
+| Ubuntu/Debian | `sudo apt install tesseract-ocr tesseract-ocr-chi-sim` |
+
+---
+
+## ⚙️ 配置项（`.env`）
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | `8000` | 后端端口 |
+| `MAX_UPLOAD_SIZE_MB` | `100` | 单文件上传大小上限 |
+| `MAX_BATCH_FILES` | `50` | 批量上传文件数上限 |
+| `OCR_ENGINE` | `opencv_hybrid` | OCR 引擎（`opencv_hybrid` / `qwen_vl` / `tesseract`） |
+| `QWEN_API_KEY` | 空 | Qwen-VL 大模型 API Key |
+| `QWEN_BASE_URL` | `dashscope.aliyuncs.com/...` | Qwen-VL 接口地址 |
+| `QWEN_MODEL` | `qwen-vl-plus` | Qwen-VL 模型名称 |
+| `QWEN_TIMEOUT` | `60` | Qwen-VL 请求超时（秒） |
+| `CORS_ORIGINS` | `["*"]` | 允许的跨域来源 |
+
+---
+
+## 📡 REST API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/v1/convert` | 单文件转换（同步返回结果） |
+| `POST` | `/api/v1/convert/batch` | 批量转换（异步，返回 `task_id`） |
+| `GET` | `/api/v1/tasks/{task_id}` | 查询任务进度与结果 |
+| `GET` | `/api/v1/settings/ocr` | 读取 OCR 配置（API Key 脱敏） |
+| `PUT` | `/api/v1/settings/ocr` | 更新 OCR 配置（持久化到 `.env`） |
+| `GET` | `/api/v1/health` | 健康检查 |
+| `GET` | `/info` | 服务信息 |
+
+### 示例：单文件转换
+
+```bash
+curl -X POST http://localhost:8000/api/v1/convert \
+  -F "file=@report.xlsx" \
+  -F "conversion_type=xlsx_to_pdf"
+```
+
+### 示例：切换 OCR 引擎
+
+```bash
+curl -X PUT http://localhost:8000/api/v1/settings/ocr \
+  -H "Content-Type: application/json" \
+  -d '{"engine":"qwen_vl"}'
+```
+
+---
+
+## 🐍 作为 Python 库使用
+
+核心库 `doc_converter` 可脱离 Web 服务独立使用：
 
 ```python
 from doc_converter import Converter
 
-# 1. Excel 转 PDF
-Converter.convert("samples/report.xlsx", "output/report.pdf")
+# Excel → PDF
+Converter.convert("report.xlsx", "report.pdf")
 
-# 2. PDF 拆成多页 PNG（自动命名为 manual_page_001.png / 002.png...）
-Converter.convert("samples/manual.pdf", "output/manual_page.png")
+# PDF → 多页 PNG（自动命名 page_001.png / page_002.png...）
+Converter.convert("manual.pdf", "manual_page.png")
 
-# 3. 图片合并成 PDF
-Converter.convert("samples/photo.png", "output/photo.pdf")
+# 图片 → PDF
+Converter.convert("photo.png", "photo.pdf")
 
-# 4. 扫描件 OCR -> Excel
-Converter.convert("samples/scan.png", "output/scan.xlsx")
+# 扫描件 OCR → Excel
+Converter.convert("scan.png", "scan.xlsx")
 ```
 
-更多场景见 [`examples/`](./examples/) 目录。
+更多场景见 [`examples/`](./examples/)。
 
 ---
 
-## 架构说明
+## 🤝 贡献
 
-```
-doc_converter/
-├── __init__.py              # 暴露 Converter / BatchProcessor / get_logger
-├── core/
-│   ├── base.py              # BaseConverter / ConversionError / ConversionResult
-│   ├── converter.py         # 统一入口 Converter（门面模式）
-│   ├── registry.py          # 全局路由表（线程安全）
-│   ├── batch.py             # 目录级批处理 BatchProcessor
-│   └── logger.py            # 日志配置 / set_level
-├── converters/
-│   ├── excel_converter.py   # Excel <-> PDF / Excel -> 图片
-│   ├── pdf_converter.py     # PDF -> 图片 / PDF -> Excel
-│   ├── image_converter.py   # 图片 -> PDF（支持多图合并）
-│   ├── word_converter.py    # Word <-> PDF
-│   └── ocr_converter.py     # 图片 OCR -> Excel
-└── utils/
-    ├── paths.py             # ensure_dir / unique_output_path / split_ext
-    └── platform.py          # Platform / detect_platform / has_office / has_libreoffice
-```
+欢迎提交 Issue 和 Pull Request！
 
-**设计模式**：
-
-- **Facade（门面）**：`Converter` 对外只暴露 3 个方法（`convert` / `batch` / `supported`）。
-- **Strategy（策略）**：每个具体 `*Converter` 是一种转换策略，可被 `Registry` 自由替换。
-- **Registry（注册表）**：`(src_ext, dst_ext) -> [BaseConverter]` 的路由表。
-- **Template Method（模板方法）**：`BaseConverter` 定义 `_resolve_paths` / `_check_pair_supported` 等公共骨架。
-
-**数据流**：
-
-```
-Caller
-  └─ Converter.convert(src, dst)
-        ├─ 1) 参数校验（路径存在、扩展名合法）
-        ├─ 2) Registry.resolve(src_ext, dst_ext)  -> 选转换器
-        └─ 3) handler.convert(src, dst)
-                └─ 4) 具体转换器按引擎能力选 soffice / win32 / fitz / ...
-```
+1. Fork 本项目
+2. 创建特性分支：`git checkout -b feature/amazing-feature`
+3. 提交改动：`git commit -m 'feat: add amazing feature'`
+4. 推送分支：`git push origin feature/amazing-feature`
+5. 发起 Pull Request
 
 ---
 
-## API 参考
+## 📄 License
 
-### `Converter.convert(source, target, *, overwrite=False, **kwargs)`
-
-把单个文件从 `source` 转换为 `target`。
-
-- **参数**
-  - `source` (`str | Path`)：源文件路径。
-  - `target` (`str | Path`)：目标文件路径（**必须带扩展名**）。
-  - `overwrite` (`bool`)：目标存在时是否覆盖。默认 `False`（追加 `_1`、`_2` 后缀）。
-  - `**kwargs`：透传给具体转换器（如 `dpi=200`、`lang="eng"`、`engine="libreoffice"`）。
-- **返回**：实际写入的 `Path`。
-- **抛出**：`ConversionError`（不支持的组合、源文件缺失、依赖缺失、引擎失败等）。
-
-### `Converter.batch(source_dir, target_dir, *, overwrite=False, continue_on_error=True)`
-
-目录级批量处理。详见 [`examples/batch_convert.py`](./examples/batch_convert.py)。
-
-- **返回**：`list[ConversionResult]`，每个元素含 `source / target / success / message`。
-- **`continue_on_error=True`** 时：单文件失败仅记录到 `message`，不中断其他任务。
-
-### `Converter.supported() -> list[tuple[str, str]]`
-
-返回当前已注册的所有支持组合，例如 `[(".xlsx", ".pdf"), (".pdf", ".png"), ...]`。
-
-### `Converter.can_convert(source, target) -> bool`
-
-轻量级"是否支持"判断（不触磁盘 IO，只看扩展名）。
-
-### `BatchProcessor`（高级用法）
-
-```python
-from doc_converter import BatchProcessor
-
-results = BatchProcessor(
-    source_dir="input/",
-    target_dir="output/",
-    overwrite=False,
-    continue_on_error=True,
-    recursive=True,        # 默认 True，递归处理子目录
-).run()
-```
-
-### `Registry`（扩展开发用）
-
-```python
-from doc_converter.core.registry import Registry
-from doc_converter.core.base import BaseConverter
-
-class MyConverter(BaseConverter):
-    name = "MyConverter"
-    supported_pairs = ((".foo", ".bar"),)
-    def convert(self, source, target): ...
-
-Registry.register(MyConverter())
-```
-
----
-
-## 示例
-
-| 文件 | 说明 |
-|------|------|
-| [`examples/single_convert.py`](./examples/single_convert.py) | 6 个单文件转换场景：Excel/PDF/Word/图片/OCR |
-| [`examples/batch_convert.py`](./examples/batch_convert.py) | 整目录批量转换 + 结果汇总 |
-| [`examples/ocr_to_excel.py`](./examples/ocr_to_excel.py) | OCR 专项：自定义语言、置信度阈值 |
-
-运行方式（在项目根目录）：
-
-```bash
-python examples/single_convert.py
-python examples/batch_convert.py
-python examples/ocr_to_excel.py
-```
-
----
-
-## 平台差异
-
-| 平台 | Excel → PDF | Word → PDF | 备选 |
-|------|-------------|------------|------|
-| **Windows + MS Office** | `pywin32`（保真度最高） | `docx2pdf` / `pywin32` | 字体、图表、合并单元格 100% 保留 |
-| **Windows + 无 Office** | `LibreOffice` | `LibreOffice` | 安装 LibreOffice 后即可 |
-| **Linux 服务器** | `LibreOffice` | `LibreOffice` | 必装 `libreoffice` 包 |
-| **macOS** | `LibreOffice` | `docx2pdf`（需 MS Word for Mac） | 推荐 `brew install --cask libreoffice` |
-
-判断逻辑写在 [`doc_converter/utils/platform.py`](./doc_converter/utils/platform.py)，可通过 `office_status()` 编程查询。
-
----
-
-## 大文件与内存优化建议
-
-### 1) PDF 渲染（PDF → 图片 / Excel → 图片）
-
-`PyMuPDF (fitz)` 本身就是**分页**加载的，按 `doc.load_page(i)` 取单页不会把整本 PDF 一次性读入内存。建议：
-
-- 多页 PDF 转换时，**单页处理 + 立即写出**，不要把全部 page 累积到 list。
-- 若 PDF 超过 1 GB，使用 `fitz.open(src, filetype="pdf")` 后**显式释放**：`del doc` / `doc.close()`。
-
-### 2) Excel 大文件
-
-- **读取**侧：若 `.xlsx` 很大且只需遍历数据，使用 `openpyxl.load_workbook(..., read_only=True)` 流式读取。
-- **写入**侧：本项目 `PDF → XLSX` 走的是 `openpyxl.Workbook()`，对几十 MB 以内的 PDF 完全够用；超过 100 MB 时建议先在源头 PDF 上做拆分。
-- 若需要 **OOXML 公式 / 样式** 还原，可考虑切换到 `xlsxwriter`，但本项目出于"读+写"对称性仍选用 `openpyxl`。
-
-### 3) OCR 大图片
-
-Tesseract 对超大图片（>4000×4000）效率与准确率都会下降。优化：
-
-```python
-from PIL import Image
-img = Image.open("huge_scan.png")
-# 等比缩放至最长边 2000
-w, h = img.size
-scale = 2000 / max(w, h)
-img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-img.save("resized.png")
-```
-
-再对 `resized.png` 做 OCR。
-
-### 4) 批量处理（`Converter.batch`）
-
-- 单进程默认顺序处理；如需并发，可在外层用 `concurrent.futures.ProcessPoolExecutor` 调 `Converter.convert`。
-- 注意 LibreOffice 同一时间只能跑一个实例；并发时建议加 `semaphore = threading.Semaphore(1)` 串行化 soffice 调用。
-- 大目录建议**按扩展名分批**：先 PDF、再 Excel、最后 OCR，避免 Tesseract 内存占用相互挤兑。
-
-### 5) 日志
-
-转换时若开启 `logging.DEBUG`，日志会输出每一步路径/引擎信息。生产环境建议 `INFO`，debug 排错时再提高。
-
-```python
-import logging
-from doc_converter.core.logger import set_level
-set_level(logging.INFO)
-```
-
----
-
-## 扩展指南
-
-加一个新的转换器只需 3 步：
-
-### Step 1：继承 `BaseConverter`
-
-```python
-# doc_converter/converters/markdown_converter.py
-from pathlib import Path
-from typing import ClassVar, Tuple
-from ..core.base import BaseConverter, ConversionError, PathLike
-
-class MarkdownConverter(BaseConverter):
-    name: ClassVar[str] = "MarkdownConverter"
-    supported_pairs: ClassVar[Tuple[Tuple[str, str], ...]] = (
-        (".md", ".pdf"),
-        (".md", ".html"),
-    )
-
-    def convert(self, source: PathLike, target: PathLike, **kwargs) -> Path:
-        src, dst = self._resolve_paths(source, target)
-        # ... 你的实现 ...
-        return dst
-```
-
-### Step 2：导出到包 `__init__`
-
-```python
-# doc_converter/converters/__init__.py
-from .markdown_converter import MarkdownConverter   # 触发自动注册
-```
-
-### Step 3：（可选）手动注册
-
-```python
-from doc_converter.core.registry import Registry
-from doc_converter.converters.markdown_converter import MarkdownConverter
-Registry.register(MarkdownConverter())
-```
-
-注册后 `Converter.convert("README.md", "out.pdf")` 会自动路由到 `MarkdownConverter`。
-
----
-
-## 已知限制
-
-1. **PDF → Word 仅文本**：会丢失字体、颜色、表格、列、页眉页脚、矢量图等版式信息；只适合"纯文字可编辑化"场景。
-2. **PDF → Excel 复杂表格格式丢失**：只能识别明显的文本边框表格；扫描版 PDF 的表格需要先 OCR 再解析。
-3. **OCR 复杂排版按行还原**：仅按 `block_num / par_num / line_num` 还原为"行 × 列"，不识别表格线、单元格合并、字体粗细。
-4. **LibreOffice 转换依赖系统二进制**：在精简 Docker 镜像（无 `soffice`）上不可用，需要安装 `libreoffice` 包。
-5. **`pywin32` 仅 Windows** + **本机已装 Office**：其它平台会自动回退到 LibreOffice。
-6. **目标必须带扩展名**：传目录或不带后缀会抛 `ConversionError`（避免歧义导致用户预期外行为）。
-
----
-
-## License
-
-MIT License
-
-Copyright (c) 2026 doc_converter contributors
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+[MIT](./LICENSE) © 2026 File Converter contributors
