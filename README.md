@@ -96,6 +96,19 @@ File_HZ/
 
 ## 🚀 快速开始
 
+### 0. Windows 一键启动（双击，免命令行）
+
+项目根目录提供了双击即用的启停脚本，后台运行、不弹命令行窗口，运行日志写入 `logs/` 目录：
+
+| 脚本 | 作用 |
+|------|------|
+| `start.vbs` | 后台启动后端（`8000`）+ 前端（`5213`），启动后访问 http://localhost:5213 |
+| `stop.vbs` | 停止上述两个服务 |
+
+> 前提：`api/.venv`（Python 虚拟环境）与 `frontend/node_modules` 需已安装，首次使用请先按下方第 1、2 步装好依赖。
+>
+> 日志：`logs/startup.log`（启动状态）、`logs/backend.log` / `backend.err.log`（后端）、`logs/frontend.log` / `frontend.err.log`（前端）。
+
 ### 前置依赖
 
 - **Python 3.10+**
