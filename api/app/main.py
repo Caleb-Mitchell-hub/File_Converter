@@ -23,9 +23,11 @@ from app import __version__
 from app.api import api_router
 from app.api.routes.info import router as info_router
 from app.config import get_settings
+from app.db import init_db
 from app.models.schemas import ErrorResponse
 from app.service import TaskManager
 from app.service.conversion_service import ConversionService
+from app.service.user_service import ensure_default_admin
 from app.state import (
     set_conversion_service,
     set_task_manager,
@@ -59,8 +61,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info("日志目录: %s", settings.log_dir)
     log.info("=" * 60)
 
-    # 初始化单例
-    _task_manager = TaskManager(ttl_hours=settings.task_result_ttl_hours)
+    # 初始化数据库（建表 + 预置默认管理员）
+    try:
+        init_db(settings.db_path)
+        ensure_default_admin()
+        log.info("数据库就绪: %s", settings.db_path)
+    except Exception as exc:
+        log.exception("数据库初始化失败: %s", exc)
+
+    # 初始化单例（任务从数据库恢复，重启不丢）
+    _task_manager = TaskManager(
+        ttl_hours=settings.task_result_ttl_hours,
+        db_path=settings.db_path,
+    )
+    restored = _task_manager.load_all()
+    if restored:
+        log.info("从数据库恢复历史任务: %d 个", restored)
     set_task_manager(_task_manager)
     try:
         _conversion_service = ConversionService()

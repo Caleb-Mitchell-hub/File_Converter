@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, UploadFile, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import Settings, get_settings
+from app.security import decode_access_token
 from app.service import ConversionService, TaskManager
+from app.service.user_service import User, get_user_by_id
 from app.state import get_conversion_service, get_task_manager
+
+# Bearer token 解析器（auto_error=False：缺失时返回 None，由我们统一抛 401）
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def settings_dep() -> Settings:
@@ -25,6 +31,42 @@ def conversion_service_dep() -> ConversionService:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+) -> User:
+    """FastAPI 依赖：解析 Bearer token 并返回当前用户。
+
+    任何失败（缺失 / 无效 / 过期 / 用户不存在）统一抛 401，
+    避免向前端泄露"用户名是否存在"等探测信息。
+    """
+    settings = get_settings()
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未登录，请先登录",
+        )
+    payload = decode_access_token(credentials.credentials, settings.jwt_secret)
+    if payload is None or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录状态无效或已过期，请重新登录",
+        )
+    try:
+        user_id = int(payload["sub"])
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录状态无效",
+        ) from None
+    user = get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户不存在，请重新登录",
+        )
+    return user
 
 
 async def validate_upload(

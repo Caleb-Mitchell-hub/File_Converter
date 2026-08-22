@@ -19,7 +19,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.api.dependencies import settings_dep, task_manager_dep
+from app.api.dependencies import get_current_user, settings_dep, task_manager_dep
+from app.service.user_service import User
 from app.config import Settings
 from app.models.enums import TaskStatus
 from app.models.schemas import (
@@ -86,12 +87,13 @@ def _build_download_url(task_id: str, record, settings: Settings) -> Optional[st
 async def list_tasks(
     limit: int = Query(50, ge=1, le=500, description="返回的最大条数"),
     tm: TaskManager = Depends(task_manager_dep),
+    user: User = Depends(get_current_user),
 ) -> APIResponse:
-    """列出最近的任务。"""
+    """列出当前用户的最近任务（数据隔离）。"""
     from app.config import get_settings  # 局部导入，避免循环
 
     settings = get_settings()
-    records = tm.list_all(limit=limit)
+    records = tm.list_all(limit=limit, user_id=user.id)
     tasks = [
         r.to_info(download_url=_build_download_url(r.task_id, r, settings))
         for r in records
@@ -113,13 +115,14 @@ async def get_task(
     task_id: str,
     tm: TaskManager = Depends(task_manager_dep),
     settings: Settings = Depends(settings_dep),
+    user: User = Depends(get_current_user),
 ) -> APIResponse:
     """查询任务详情。
 
     404: 任务不存在或已被清理。
     """
     record = tm.get(task_id)
-    if not record:
+    if not record or record.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"任务不存在或已过期: {task_id}",
@@ -141,6 +144,7 @@ async def download_batch(
     task_id: str,
     tm: TaskManager = Depends(task_manager_dep),
     settings: Settings = Depends(settings_dep),
+    user: User = Depends(get_current_user),
 ):
     """下载批量转换结果。
 
@@ -148,7 +152,7 @@ async def download_batch(
     若不存在则尝试在 output_dir 下匹配 ``{task_id}*.zip``。
     """
     record = tm.get(task_id)
-    if not record:
+    if not record or record.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"任务不存在: {task_id}",
@@ -166,14 +170,14 @@ async def download_batch(
         candidate = Path(zip_path_str)
         # 防穿越
         try:
-            zip_path = _safe_resolve(settings.output_dir, candidate.name)
+            zip_path = _safe_resolve(settings.output_dir / str(user.id), candidate.name)
         except HTTPException:
             zip_path = None
         if zip_path is None or not zip_path.exists():
             # 退而求其次：直接信任记录里的路径（但仍要校验父目录）
             parent = candidate.resolve().parent
             try:
-                parent.relative_to(settings.output_dir.resolve())
+                parent.relative_to((settings.output_dir / str(user.id)).resolve())
             except ValueError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -183,7 +187,7 @@ async def download_batch(
 
     if zip_path is None or not zip_path.exists():
         # 兜底：在 output_dir 下找任何与 task 相关的 zip
-        output_dir = settings.output_dir.resolve()
+        output_dir = (settings.output_dir / str(user.id)).resolve()
         for cand in output_dir.rglob("*.zip"):
             if task_id[:8] in cand.name:
                 zip_path = cand
@@ -213,10 +217,11 @@ async def download_single(
     filename: str,
     tm: TaskManager = Depends(task_manager_dep),
     settings: Settings = Depends(settings_dep),
+    user: User = Depends(get_current_user),
 ):
     """下载单文件转换产物。"""
     record = tm.get(task_id)
-    if not record:
+    if not record or record.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"任务不存在: {task_id}",
@@ -227,8 +232,8 @@ async def download_single(
             detail=f"任务尚未完成: status={record.status.value}",
         )
 
-    # 防路径穿越
-    target = _safe_resolve(settings.output_dir, filename)
+    # 防路径穿越（用户专属输出目录）
+    target = _safe_resolve(settings.output_dir / str(user.id), filename)
     if not target.exists() or not target.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -290,6 +295,7 @@ async def delete_task(
     task_id: str,
     tm: TaskManager = Depends(task_manager_dep),
     settings: Settings = Depends(settings_dep),
+    user: User = Depends(get_current_user),
 ) -> APIResponse:
     """删除任务。
 
@@ -299,7 +305,7 @@ async def delete_task(
         - 尝试删除 upload_dir 下的源文件（按 record.extra.source_path 列表）
     """
     record = tm.get(task_id)
-    if not record:
+    if not record or record.user_id != user.id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"任务不存在: {task_id}",
@@ -308,8 +314,8 @@ async def delete_task(
     cleaned_outputs: list[str] = []
     cleaned_uploads: list[str] = []
 
-    # 1. 清理输出文件
-    output_dir = settings.output_dir.resolve()
+    # 1. 清理输出文件（用户专属输出目录）
+    output_dir = (settings.output_dir / str(user.id)).resolve()
     for fname in record.output_files:
         try:
             target = _safe_resolve(output_dir, fname)
@@ -323,8 +329,8 @@ async def delete_task(
             safe_delete(target)
             cleaned_outputs.append(fname)
 
-    # 2. 清理源文件（单文件 / 批量都能用）
-    upload_dir = settings.upload_dir.resolve()
+    # 2. 清理源文件（单文件 / 批量都能用，用户专属上传目录）
+    upload_dir = (settings.upload_dir / str(user.id)).resolve()
     source_paths = record.extra.get("source_paths") or []
     if not source_paths and record.extra.get("source_path"):
         source_paths = [record.extra["source_path"]]

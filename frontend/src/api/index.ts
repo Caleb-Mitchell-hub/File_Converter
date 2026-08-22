@@ -20,7 +20,7 @@ import axios, {
 } from 'axios'
 import { ElMessage } from 'element-plus'
 import { BUSINESS_CODE, HTTP_STATUS, STORAGE_KEYS } from '@/utils/constants'
-import type { APIResponse } from '@/types'
+import type { APIErrorPayload, APIResponse } from '@/types'
 
 export class APIError extends Error {
   code: number

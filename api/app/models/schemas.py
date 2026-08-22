@@ -134,3 +134,40 @@ class OcrSettingsUpdate(BaseModel):
     qwen_base_url: Optional[str] = None
     qwen_model: Optional[str] = None
     qwen_timeout: Optional[int] = None
+
+# ---------------------------------------------------------------------- #
+# 认证 / 用户
+# ---------------------------------------------------------------------- #
+class UserInfo(BaseModel):
+    """对外暴露的用户信息（不含密码哈希）。"""
+
+    id: str
+    username: str
+    nickname: str
+    role: str
+    created_at: Optional[str] = None
+
+
+class LoginRequest(BaseModel):
+    """登录请求。"""
+
+    username: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    """注册请求。"""
+
+    username: str
+    password: str
+    nickname: Optional[str] = None
+
+
+class LoginResponse(BaseModel):
+    """登录响应：JWT + 用户信息。"""
+
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserInfo
+

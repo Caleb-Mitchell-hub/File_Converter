@@ -77,6 +77,7 @@ class ConversionService:
         jpg_quality: Optional[int] = None,
         overwrite: bool = False,
         on_progress: Optional[Callable[[int, int], None]] = None,
+        output_dir: Optional[Path] = None,
     ) -> Tuple[Path, FileResult]:
         """转换单个文件。
 
@@ -110,8 +111,8 @@ class ConversionService:
             )
             raise ConversionValidationError(msg, result)
 
-        # 构造目标路径
-        target_dir = ensure_dir(self.settings.output_dir)
+        # 构造目标路径（支持用户隔离目录）
+        target_dir = ensure_dir(output_dir or self.settings.output_dir)
         if target_filename:
             out_name = safe_filename(target_filename)
         else:
@@ -227,6 +228,7 @@ class ConversionService:
         zip_output: bool = True,
         on_progress: Optional[Callable[[int, int], None]] = None,
         on_page_progress: Optional[Callable[[str, int, int], None]] = None,
+        output_dir: Optional[Path] = None,
     ) -> Tuple[List[FileResult], Optional[Path]]:
         """批量转换。
 
@@ -247,9 +249,10 @@ class ConversionService:
         if total == 0:
             return [], None
 
-        # 准备输出目录
+        # 准备输出目录（支持用户隔离目录）
+        root_dir = output_dir or self.settings.output_dir
         sub = safe_filename(target_subdir) if target_subdir else f"batch_{generate_task_id()[:8]}"
-        out_dir = ensure_dir(self.settings.output_dir / sub)
+        out_dir = ensure_dir(root_dir / sub)
 
         results: List[FileResult] = []
         for idx, src in enumerate(source_paths, start=1):

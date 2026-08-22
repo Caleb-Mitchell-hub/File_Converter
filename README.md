@@ -27,6 +27,8 @@
 - 🎯 **高保真** — Windows 下优先调用本地 Office COM 接口，字体/颜色/图表/合并单元格完整保留
 - 🌐 **跨平台** — Windows / macOS / Linux，无 Office 时自动回退 LibreOffice
 - 🔒 **健壮容错** — 单文件失败不影响批量任务，同名文件自动追加后缀，不覆盖原始文件
+- 👤 **用户体系** — 注册 / 登录 / JWT 鉴权（PBKDF2 加盐密码哈希），任务与文件按用户严格隔离
+- 💾 **数据持久化** — 用户与任务存入 SQLite（零依赖），服务重启不丢失，历史任务可继续查询/下载
 
 ---
 
@@ -77,10 +79,13 @@ File_HZ/
 │   └── utils/                  # 路径 / 平台检测
 ├── api/                        # FastAPI 后端服务
 │   ├── app/
-│   │   ├── api/routes/         # convert / tasks / settings / health / info
+│   │   ├── api/routes/         # auth / convert / tasks / settings / health / info
 │   │   ├── models/             # 枚举 / Pydantic schema
-│   │   ├── service/            # ConversionService / TaskManager
+│   │   ├── service/            # ConversionService / TaskManager / UserService
+│   │   ├── security.py         # 密码哈希 + JWT
+│   │   ├── db.py               # SQLite 连接与建表
 │   │   └── config.py           # 全局配置（.env 加载）
+│   └── data/app.db             # SQLite 数据库（用户 + 任务，自动创建）
 │   ├── .env.example            # 环境变量模板
 │   └── requirements.txt
 ├── frontend/                   # Vue 3 前端
@@ -138,6 +143,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 启动后可访问：
 - Swagger 文档：<http://localhost:8000/docs>
 - 健康检查：<http://localhost:8000/api/v1/health>
+
+> **默认管理员账号**：\`admin / admin123\`（首次启动自动创建，登录后请及时修改密码）。
+> 所有转换 / 任务接口均需登录（JWT），未登录返回 401。
 
 ### 2. 启动前端
 

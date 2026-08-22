@@ -33,11 +33,15 @@ htmlcov/
 
 # 日志
 *.log
+logs/
 
 # 上传/输出文件（运行时生成）
 api/uploads/
 api/outputs/
 api/logs/
+
+# 数据库（运行时生成）
+api/data/
 
 # 前端
 frontend/node_modules/

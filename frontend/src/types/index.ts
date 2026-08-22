@@ -174,6 +174,13 @@ export interface LoginResponse {
   user: UserInfo
 }
 
+/** 注册请求 */
+export interface RegisterRequest {
+  username: string
+  password: string
+  nickname?: string
+}
+
 /** 用户信息 */
 export interface UserInfo {
   id: string

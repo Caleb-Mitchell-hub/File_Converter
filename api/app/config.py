@@ -65,6 +65,20 @@ class Settings(BaseSettings):
     # ---- CORS ----
     cors_origins: List[str] = Field(default_factory=lambda: ["*"])
 
+    # ---- 数据库 ----
+    db_path: Path = Field(default=BASE_DIR / "data" / "app.db")
+
+    # ---- 认证 / JWT ----
+    jwt_secret: str = Field(
+        default="dev-secret-change-me",
+        description="JWT 签名密钥，生产环境务必在 .env 中改为随机长字符串",
+    )
+    jwt_expire_seconds: int = 86400  # token 有效期（秒），默认 24 小时
+
+    # ---- 默认管理员（首次启动预置） ----
+    default_admin_username: str = "admin"
+    default_admin_password: str = "admin123"
+
     # ---- 转换引擎 ----
     default_dpi: int = 300
     default_jpg_quality: int = 95

@@ -33,9 +33,11 @@ from fastapi import (
 
 from app.api.dependencies import (
     conversion_service_dep,
+    get_current_user,
     settings_dep,
     task_manager_dep,
 )
+from app.service.user_service import User
 from app.config import Settings
 from app.models.enums import ConversionType, TaskStatus
 from app.models.schemas import APIResponse, FileResult
@@ -135,6 +137,7 @@ async def convert_single(
     settings: Settings = Depends(settings_dep),
     tm: TaskManager = Depends(task_manager_dep),
     converter: ConversionService = Depends(conversion_service_dep),
+    user: User = Depends(get_current_user),
 ) -> APIResponse:
     """单文件转换端点（同步）。
 
@@ -193,7 +196,7 @@ async def convert_single(
 
     # 3. 创建 task 记录
     task_id = generate_task_id()
-    record = tm.create(task_id, conversion_type, total_files=1)
+    record = tm.create(task_id, conversion_type, total_files=1, user_id=user.id)
     record.extra.update(
         {
             "source_filename": saved_path.name,
@@ -226,6 +229,7 @@ async def convert_single(
             jpg_quality=jpg_quality,
             overwrite=overwrite,
             on_progress=_on_page_progress,
+            output_dir=settings.output_dir / str(user.id),
         )
     except (ConversionValidationError, ConversionExecutionError) as exc:
         log.error("转换失败: %s - %s", saved_path.name, exc)
@@ -278,6 +282,7 @@ async def _run_single_task(
     overwrite: bool,
     tm: TaskManager,
     converter: ConversionService,
+    output_dir: Optional[Path] = None,
 ) -> None:
     """单文件异步路径：与批量行为完全一致；状态机从 PENDING 切到 RUNNING。"""
     try:
@@ -298,6 +303,7 @@ async def _run_single_task(
             jpg_quality=jpg_quality,
             overwrite=overwrite,
             on_progress=_on_page_progress,
+            output_dir=output_dir,
         )
 
         tm.append_output(task_id, output_path.name)
@@ -337,6 +343,7 @@ async def convert_single_async(
     settings: Settings = Depends(settings_dep),
     tm: TaskManager = Depends(task_manager_dep),
     converter: ConversionService = Depends(conversion_service_dep),
+    user: User = Depends(get_current_user),
 ) -> APIResponse:
     """单文件异步端点：先创建 PENDING task，立刻返回 task_id。"""
     if not file.filename:
@@ -376,7 +383,7 @@ async def convert_single_async(
 
     # 创建 task（PENDING），把任务丢到后台协程
     task_id = generate_task_id()
-    record = tm.create(task_id, conversion_type, total_files=1)
+    record = tm.create(task_id, conversion_type, total_files=1, user_id=user.id)
     record.extra.update(
         {
             "source_filename": saved_path.name,
@@ -399,6 +406,7 @@ async def convert_single_async(
             overwrite=overwrite,
             tm=tm,
             converter=converter,
+            output_dir=settings.output_dir / str(user.id),
         )
     )
 
@@ -433,6 +441,7 @@ async def _run_batch_task(
     zip_output: bool,
     tm: TaskManager,
     converter: ConversionService,
+    output_dir: Optional[Path] = None,
 ) -> None:
     """真正执行批量转换的后台协程。
 
@@ -468,6 +477,7 @@ async def _run_batch_task(
             zip_output=zip_output,
             on_progress=_on_progress,
             on_page_progress=_on_page_progress,
+            output_dir=output_dir,
         )
 
         # 把每个文件的结果写入 task
@@ -555,6 +565,7 @@ async def convert_batch(
     settings: Settings = Depends(settings_dep),
     tm: TaskManager = Depends(task_manager_dep),
     converter: ConversionService = Depends(conversion_service_dep),
+    user: User = Depends(get_current_user),
 ) -> APIResponse:
     """批量转换端点（异步）。
 
@@ -606,7 +617,7 @@ async def convert_batch(
         for f in files:
             p = await _save_upload(
                 f,
-                dest_dir=settings.upload_dir,
+                dest_dir=settings.upload_dir / str(user.id),
                 max_size_bytes=settings.max_upload_size_bytes,
             )
             saved_paths.append(p)
@@ -626,7 +637,7 @@ async def convert_batch(
 
     # 创建 task
     task_id = generate_task_id()
-    record = tm.create(task_id, conversion_type, total_files=len(saved_paths))
+    record = tm.create(task_id, conversion_type, total_files=len(saved_paths), user_id=user.id)
     record.extra.update(
         {
             "source_filenames": [p.name for p in saved_paths],
@@ -649,6 +660,7 @@ async def convert_batch(
             zip_output=zip_output,
             tm=tm,
             converter=converter,
+            output_dir=settings.output_dir / str(user.id),
         )
     )
 
