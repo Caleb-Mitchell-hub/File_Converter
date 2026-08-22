@@ -86,29 +86,30 @@
             <span v-else class="text-secondary">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'running' || row.status === 'pending'"
-              size="small"
-              type="primary"
-              @click="onView(row as TaskInfo)"
-            >查看进度</el-button>
-            <el-button
-              v-if="row.status === 'success' || row.status === 'partial_success'"
-              size="small"
-              type="success"
-              @click="onDownload(row as TaskInfo)"
-            >下载结果</el-button>
-            <el-button
-              v-if="canRowPreview(row as TaskInfo)"
-              size="small"
-              type="primary"
-              plain
-              @click="onRowPreview(row as TaskInfo)"
-            >预览</el-button>
-            <el-button size="small" @click="onView(row as TaskInfo)">详情</el-button>
-            <el-button size="small" type="danger" @click="onDelete(row as TaskInfo)">删除</el-button>
+            <div class="row-actions">
+              <el-button
+                v-if="row.status === 'running' || row.status === 'pending'"
+                link
+                type="primary"
+                @click="onView(row as TaskInfo)"
+              >查看进度</el-button>
+              <el-button
+                v-if="row.status === 'success' || row.status === 'partial_success'"
+                link
+                type="success"
+                @click="onDownload(row as TaskInfo)"
+              >下载</el-button>
+              <el-button
+                v-if="canRowPreview(row as TaskInfo)"
+                link
+                type="primary"
+                @click="onRowPreview(row as TaskInfo)"
+              >预览</el-button>
+              <el-button link @click="onView(row as TaskInfo)">详情</el-button>
+              <el-button link type="danger" @click="onDelete(row as TaskInfo)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -483,6 +484,15 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+.row-actions .el-button + .el-button {
+  margin-left: 0;
 }
 .error-block {
   display: flex;
