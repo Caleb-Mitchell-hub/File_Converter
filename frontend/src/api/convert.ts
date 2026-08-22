@@ -223,3 +223,22 @@ export function getDownloadUrl(taskId: string, filename?: string): string {
     ? `${baseURL}/tasks/${encodeURIComponent(taskId)}/download/${encodeURIComponent(filename)}`
     : `${baseURL}/tasks/${encodeURIComponent(taskId)}/download`
 }
+
+/**
+ * 获取任务产物用于在线预览（blob 方式，自动携带 Bearer token）
+ *
+ * 后端路径：GET /api/v1/tasks/{task_id}/preview/{filename}
+ * - PDF / 图片：返回文件流 blob
+ * - XLSX / DOCX：返回渲染后的 HTML（text/html）
+ *
+ * @param taskId 任务 id
+ * @param filename 输出文件名
+ * @returns Blob 对象（前端根据扩展名决定展示方式）
+ */
+export function previewFile(taskId: string, filename: string): Promise<Blob> {
+  return service.get(
+    `/tasks/${encodeURIComponent(taskId)}/preview/${encodeURIComponent(filename)}`,
+    { responseType: 'blob' }
+  ) as unknown as Promise<Blob>
+}
+

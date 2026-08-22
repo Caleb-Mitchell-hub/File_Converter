@@ -13,11 +13,12 @@
 
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from app.api.dependencies import get_current_user, settings_dep, task_manager_dep
 from app.service.user_service import User
@@ -260,6 +261,105 @@ async def download_single(
         path=str(target),
         filename=filename,
         media_type=media_type,
+    )
+
+
+# ---------------------------------------------------------------------- #
+# 预览：产物在线预览
+# ---------------------------------------------------------------------- #
+# 可直接 inline 返回的扩展名（浏览器原生预览）
+_INLINE_MEDIA = {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".tiff": "image/tiff",
+}
+
+
+@router.get(
+    "/tasks/{task_id}/preview/{filename}",
+    summary="预览任务产物",
+    description=(
+        "在线预览转换产物：PDF / 图片直接返回文件流（inline），"
+        "XLSX / DOCX 渲染为 HTML 表格。"
+    ),
+)
+async def preview_file(
+    task_id: str,
+    filename: str,
+    tm: TaskManager = Depends(task_manager_dep),
+    settings: Settings = Depends(settings_dep),
+    user: User = Depends(get_current_user),
+):
+    """预览任务产物（鉴权 + 归属校验，与下载一致）。
+
+    行为：
+        - PDF / 图片：FileResponse 以 inline 方式返回，浏览器原生预览。
+        - XLSX / DOCX：用 openpyxl / python-docx 渲染为 HTML。
+        - ZIP / 其它：返回提示页。
+    """
+    record = tm.get(task_id)
+    if not record or record.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"任务不存在: {task_id}",
+        )
+    if record.status not in (TaskStatus.SUCCESS, TaskStatus.PARTIAL_SUCCESS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"任务尚未完成: status={record.status.value}",
+        )
+
+    # 防路径穿越（用户专属输出目录）
+    target = _safe_resolve(settings.output_dir / str(user.id), filename)
+    if not target.exists() or not target.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"文件不存在: {filename}",
+        )
+
+    # 额外校验：filename 必须在该任务的 output_files 内
+    if record.output_files and filename not in record.output_files:
+        log.warning(
+            "预览文件名不匹配 task=%s: 请求=%s, 实际=%s",
+            task_id,
+            filename,
+            record.output_files,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="该文件不属于此任务",
+        )
+
+    ext = target.suffix.lower()
+    if ext == ".zip":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="压缩包不支持在线预览，请下载后查看",
+        )
+
+    media = _INLINE_MEDIA.get(ext)
+    if media:
+        return FileResponse(
+            path=str(target),
+            media_type=media,
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
+
+    if ext in (".xlsx", ".docx"):
+        from app.utils.preview_html import render_preview_html
+
+        return HTMLResponse(content=render_preview_html(target))
+
+    return HTMLResponse(
+        content=(
+            "<p>该文件类型（"
+            + escape(ext)
+            + "）暂不支持在线预览，请下载后查看。</p>"
+        )
     )
 
 

@@ -250,6 +250,16 @@
                 <el-icon><Download /></el-icon>
                 下载 {{ truncate(file, 20) }}
               </el-button>
+              <el-button
+                v-if="currentTask.output_files.length && canPreview(currentTask.output_files[0])"
+                type="success"
+                plain
+                size="small"
+                @click="onPreview(currentTask.output_files[0])"
+              >
+                <el-icon><View /></el-icon>
+                预览
+              </el-button>
             </div>
             <el-button
               v-else-if="currentTask.status === 'failed'"
@@ -265,6 +275,13 @@
         </div>
       </el-col>
     </el-row>
+
+    <!-- 产物预览对话框 -->
+    <FilePreviewDialog
+      v-model:visible="previewVisible"
+      :task-id="currentTask?.task_id || ''"
+      :filename="previewFilename"
+    />
   </div>
 </template>
 
@@ -288,7 +305,8 @@ import {
 import {
   CircleCheckFilled,
   CircleCloseFilled,
-  WarningFilled
+  WarningFilled,
+  View
 } from '@element-plus/icons-vue'
 import { useTaskStore } from '@/stores/task'
 import { useAppStore } from '@/stores/app'
@@ -301,6 +319,7 @@ import {
 import { ALLOWED_EXTENSIONS } from '@/utils/constants'
 import { truncate } from '@/utils/format'
 import { getDownloadUrl } from '@/api/convert'
+import FilePreviewDialog from '@/components/FilePreviewDialog.vue'
 
 const router = useRouter()
 const taskStore = useTaskStore()
@@ -322,6 +341,10 @@ const jpgQuality = ref<number>(95)
 const overwrite = ref<boolean>(false)
 /** 提交中（按钮 loading） */
 const submitting = ref<boolean>(false)
+/** 预览对话框可见性 */
+const previewVisible = ref<boolean>(false)
+/** 待预览的文件名 */
+const previewFilename = ref<string>('')
 
 // 转换类型变化时同步到 store
 watch(conversionType, (v) => taskStore.setConversionType(v))
@@ -434,6 +457,19 @@ function onDownload(filename: string): void {
   a.href = url
   a.download = filename
   a.click()
+}
+
+/**
+ * 打开产物预览（zip 不支持预览）
+ */
+function onPreview(filename: string): void {
+  previewFilename.value = filename
+  previewVisible.value = true
+}
+
+/** 是否可预览（zip 排除） */
+function canPreview(filename: string): boolean {
+  return !filename.toLowerCase().endsWith('.zip')
 }
 
 /**

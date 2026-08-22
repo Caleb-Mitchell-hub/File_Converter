@@ -181,14 +181,28 @@
         </div>
         <p v-if="detailTask.output_files.length"><strong>输出文件：</strong></p>
         <ul v-if="detailTask.output_files.length">
-          <li v-for="f in detailTask.output_files" :key="f">
+          <li v-for="f in detailTask.output_files" :key="f" class="output-item">
             <el-link type="primary" @click="downloadFile(detailTask.task_id, f)">
               {{ f }}
             </el-link>
+            <el-button
+              v-if="canPreview(f)"
+              size="small"
+              link
+              type="success"
+              @click="onPreview(f)"
+            >预览</el-button>
           </li>
         </ul>
       </div>
     </el-dialog>
+
+    <!-- 产物预览对话框 -->
+    <FilePreviewDialog
+      v-model:visible="previewVisible"
+      :task-id="detailTask?.task_id || ''"
+      :filename="previewFilename"
+    />
   </div>
 </template>
 
@@ -218,6 +232,7 @@ import {
 import { formatDate, truncate } from '@/utils/format'
 import { getDownloadUrl } from '@/api/convert'
 import * as convertApi from '@/api/convert'
+import FilePreviewDialog from '@/components/FilePreviewDialog.vue'
 
 const route = useRoute()
 const taskStore = useTaskStore()
@@ -233,6 +248,10 @@ const filterStatus = ref<TaskStatusType | ''>('')
 const detailVisible = ref<boolean>(false)
 /** 当前查看的任务 */
 const detailTask = ref<TaskInfo | null>(null)
+/** 预览对话框可见性 */
+const previewVisible = ref<boolean>(false)
+/** 待预览的文件名 */
+const previewFilename = ref<string>('')
 
 /** 按状态过滤后的任务列表 */
 const filteredTasks = computed<TaskInfo[]>(() => {
@@ -363,6 +382,19 @@ async function onDelete(task: TaskInfo): Promise<void> {
   }
 }
 
+/**
+ * 打开产物预览（zip 不支持预览）
+ */
+function onPreview(filename: string): void {
+  previewFilename.value = filename
+  previewVisible.value = true
+}
+
+/** 是否可预览（zip 排除） */
+function canPreview(filename: string): boolean {
+  return !filename.toLowerCase().endsWith('.zip')
+}
+
 /** 重新拉取任务列表 */
 async function reload(): Promise<void> {
   loading.value = true
@@ -422,6 +454,11 @@ watch(
 .task-detail ul {
   margin: 8px 0 0 0;
   padding-left: 20px;
+}
+.output-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .error-block {
   display: flex;

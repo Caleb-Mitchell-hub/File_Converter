@@ -29,6 +29,7 @@
 - 🔒 **健壮容错** — 单文件失败不影响批量任务，同名文件自动追加后缀，不覆盖原始文件
 - 👤 **用户体系** — 注册 / 登录 / JWT 鉴权（PBKDF2 加盐密码哈希），任务与文件按用户严格隔离
 - 💾 **数据持久化** — 用户与任务存入 SQLite（零依赖），服务重启不丢失，历史任务可继续查询/下载
+- 👁️ **在线预览** — 任务完成后可直接预览产物：PDF / 图片原生展示，XLSX / DOCX 渲染为 HTML 表格
 
 ---
 
@@ -221,6 +222,8 @@ QWEN_TIMEOUT=60
 | `POST` | `/api/v1/convert` | 单文件转换（同步返回结果） |
 | `POST` | `/api/v1/convert/batch` | 批量转换（异步，返回 `task_id`） |
 | `GET` | `/api/v1/tasks/{task_id}` | 查询任务进度与结果 |
+| `GET` | `/api/v1/tasks/{task_id}/download/{filename}` | 下载单文件任务产物 |
+| `GET` | `/api/v1/tasks/{task_id}/preview/{filename}` | 在线预览产物：PDF/图片 inline，XLSX/DOCX 转 HTML |
 | `GET` | `/api/v1/settings/ocr` | 读取 OCR 配置（API Key 脱敏） |
 | `PUT` | `/api/v1/settings/ocr` | 更新 OCR 配置（持久化到 `.env`） |
 | `GET` | `/api/v1/health` | 健康检查 |
