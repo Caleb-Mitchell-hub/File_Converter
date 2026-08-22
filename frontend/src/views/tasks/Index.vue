@@ -100,6 +100,13 @@
               type="success"
               @click="onDownload(row as TaskInfo)"
             >下载结果</el-button>
+            <el-button
+              v-if="canRowPreview(row as TaskInfo)"
+              size="small"
+              type="primary"
+              plain
+              @click="onRowPreview(row as TaskInfo)"
+            >预览</el-button>
             <el-button size="small" @click="onView(row as TaskInfo)">详情</el-button>
             <el-button size="small" type="danger" @click="onDelete(row as TaskInfo)">删除</el-button>
           </template>
@@ -200,7 +207,7 @@
     <!-- 产物预览对话框 -->
     <FilePreviewDialog
       v-model:visible="previewVisible"
-      :task-id="detailTask?.task_id || ''"
+      :task-id="previewTaskId || detailTask?.task_id || ''"
       :filename="previewFilename"
     />
   </div>
@@ -230,7 +237,7 @@ import {
   type TaskStatus as TaskStatusType
 } from '@/types'
 import { formatDate, truncate } from '@/utils/format'
-import { getDownloadUrl } from '@/api/convert'
+import { downloadTaskFile } from '@/api/convert'
 import * as convertApi from '@/api/convert'
 import FilePreviewDialog from '@/components/FilePreviewDialog.vue'
 
@@ -252,6 +259,8 @@ const detailTask = ref<TaskInfo | null>(null)
 const previewVisible = ref<boolean>(false)
 /** 待预览的文件名 */
 const previewFilename = ref<string>('')
+/** 行内预览：任务 id（详情弹窗预览时回退到 detailTask） */
+const previewTaskId = ref<string>('')
 
 /** 按状态过滤后的任务列表 */
 const filteredTasks = computed<TaskInfo[]>(() => {
@@ -343,26 +352,22 @@ function stopDetailPolling(): void {
  * - 多文件：下载 zip 包
  */
 function onDownload(task: TaskInfo): void {
-  if (task.output_files.length === 1) {
-    downloadFile(task.task_id, task.output_files[0])
-  } else {
-    const url = getDownloadUrl(task.task_id)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `batch_${task.task_id}.zip`
-    a.click()
-  }
+  // 单文件下载单个产物；多文件（批量）下载 zip 包
+  downloadTaskFile(
+    task.task_id,
+    task.output_files.length === 1 ? task.output_files[0] : undefined
+  ).catch(() => {
+    // 错误提示由 axios 拦截器统一处理
+  })
 }
 
 /**
- * 浏览器触发下载单个文件
+ * 浏览器触发下载单个文件（blob 方式，自动携带 token）
  */
 function downloadFile(taskId: string, filename: string): void {
-  const url = getDownloadUrl(taskId, filename)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
+  downloadTaskFile(taskId, filename).catch(() => {
+    // 错误提示由 axios 拦截器统一处理
+  })
 }
 
 /**
@@ -387,12 +392,31 @@ async function onDelete(task: TaskInfo): Promise<void> {
  */
 function onPreview(filename: string): void {
   previewFilename.value = filename
+  previewTaskId.value = detailTask.value?.task_id || ''
   previewVisible.value = true
 }
 
 /** 是否可预览（zip 排除） */
 function canPreview(filename: string): boolean {
   return !filename.toLowerCase().endsWith('.zip')
+}
+
+/**
+ * 行内预览：仅单文件产物且非 zip 的任务显示预览按钮
+ */
+function canRowPreview(row: TaskInfo): boolean {
+  return (
+    (row.status === TaskStatus.SUCCESS || row.status === TaskStatus.PARTIAL_SUCCESS) &&
+    row.output_files.length === 1 &&
+    canPreview(row.output_files[0])
+  )
+}
+
+/** 行内直接打开预览 */
+function onRowPreview(row: TaskInfo): void {
+  previewTaskId.value = row.task_id
+  previewFilename.value = row.output_files[0]
+  previewVisible.value = true
 }
 
 /** 重新拉取任务列表 */

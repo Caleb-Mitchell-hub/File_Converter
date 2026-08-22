@@ -242,3 +242,29 @@ export function previewFile(taskId: string, filename: string): Promise<Blob> {
   ) as unknown as Promise<Blob>
 }
 
+/**
+ * 下载任务产物（blob 方式，自动携带 Bearer token）
+ *
+ * 不能用 <a href> 直接导航下载 URL：浏览器不会携带 Authorization header，
+ * 未登录访问会返回 401。这里通过 axios 拉取 blob 后触发浏览器保存。
+ *
+ * @param taskId 任务 id
+ * @param filename 可选输出文件名；批量任务（zip）可不传
+ */
+export function downloadTaskFile(taskId: string, filename?: string): Promise<void> {
+  const url = filename
+    ? `/tasks/${encodeURIComponent(taskId)}/download/${encodeURIComponent(filename)}`
+    : `/tasks/${encodeURIComponent(taskId)}/download`
+  const saveName = filename || `batch_${taskId}.zip`
+  return (service.get(url, { responseType: 'blob' }) as unknown as Promise<Blob>).then((blob: Blob) => {
+    const objectUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = objectUrl
+    a.download = saveName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(objectUrl)
+  })
+}
+

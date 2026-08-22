@@ -343,10 +343,14 @@ async def preview_file(
 
     media = _INLINE_MEDIA.get(ext)
     if media:
+        # 用 FileResponse 的 filename + content_disposition_type="inline"，
+        # Starlette 会对非 ASCII 文件名做 RFC 5987 编码（filename*），
+        # 避免手动设置 Content-Disposition 时中文名导致 500。
         return FileResponse(
             path=str(target),
             media_type=media,
-            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+            filename=filename,
+            content_disposition_type="inline",
         )
 
     if ext in (".xlsx", ".docx"):

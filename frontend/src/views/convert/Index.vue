@@ -318,7 +318,7 @@ import {
 } from '@/types'
 import { ALLOWED_EXTENSIONS } from '@/utils/constants'
 import { truncate } from '@/utils/format'
-import { getDownloadUrl } from '@/api/convert'
+import { downloadTaskFile } from '@/api/convert'
 import FilePreviewDialog from '@/components/FilePreviewDialog.vue'
 
 const router = useRouter()
@@ -452,11 +452,10 @@ async function onSubmit(): Promise<void> {
 function onDownload(filename: string): void {
   const task = currentTask.value
   if (!task) return
-  const url = getDownloadUrl(task.task_id, filename)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
+  // blob 方式下载：自动携带 Bearer token，避免 a 标签导航 401
+  downloadTaskFile(task.task_id, filename).catch(() => {
+    // 错误提示由 axios 拦截器统一处理
+  })
 }
 
 /**

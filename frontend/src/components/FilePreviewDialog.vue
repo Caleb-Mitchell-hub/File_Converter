@@ -52,7 +52,7 @@
  */
 import { computed, onUnmounted, ref } from 'vue'
 import { Download } from '@element-plus/icons-vue'
-import { getDownloadUrl, previewFile } from '@/api/convert'
+import { downloadTaskFile, previewFile } from '@/api/convert'
 
 const props = defineProps<{
   visible: boolean
@@ -119,11 +119,9 @@ async function loadPreview(): Promise<void> {
 }
 
 function onDownload(): void {
-  const url = getDownloadUrl(props.taskId, props.filename)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = props.filename
-  a.click()
+  downloadTaskFile(props.taskId, props.filename).catch((e) => {
+    error.value = e instanceof Error ? e.message : '下载失败'
+  })
 }
 
 function onClose(): void {
